@@ -135,3 +135,8 @@ sendSocket dest = withSocketsDO $ do let getAddr port family = (getAddrInfo Noth
                                        hSetBuffering h LineBuffering
                                        return h
 
+sendProc :: TChan Clip -> TVar[Destination] -> IO ()
+sendProc ch tls = forever $ atomically (readTChan ch) >>= \clip -> searchLink tls >> linkToHandle tls >>= mapM_(flip hPutStrLn $ show clip)
+        where
+            linkToHandle tls = readTVarIO tls >>= mapM sendSocket
+
