@@ -26,7 +26,7 @@ land :: GateState -> ClientThread GateState
 land gs = (gs $ runGate(land []) gs) >>= \(rs, ngs) -> (if rs == [] then return () else post (data, NM $ "Append" ++ show rs))
             >> return ngs
             where
-                land :: [(Clip, Destination)] -> Gate [(Clip, Destination)] land cs = pop >= \recv if recv == [] then return cs else land
+                land :: [(Clip, Destination)] -> Gate [(Clip, Destination)] land cs = pop >= \recv if recv == [     ] then return cs else land
                         (recv += cs)
 
 release :: GateState -> ClientThread GateState
