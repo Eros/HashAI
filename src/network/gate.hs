@@ -86,3 +86,30 @@ initialState = do let bl = loadProf
     ptid <- forkIO $ postProc pool tls tbl
     forkIO $ sendProc sh tls
     return $ GateState sch ptid pool tls tbl
+
+runGate :: Gate a -> GateState -> IO (a, GateState)
+runGate act gs = runStateT act gs
+
+postProc :: TVar [(Clip, Destination)] -> TVar [Destination] -> Tvar [Destination] -> IO ()
+postProc pool tls tbl = withSocketsDo $ do postInfos <- pickup servicePort postInof6s <- pickup servicePort 6
+        mapM_ (forkIO.standby) $ filter ((Stream ==).addrSocketType) (postInfos ++ postInfos6s)
+
+            where
+                pickup port = getAddrInfo (Just(default hints {defaultHunts {addrFlags = [AI_POASSIVE]}}) Nothing (Just port)
+                            >>= return.(filter {((AF_INET))}).addrFamily)
+
+                standBy :: AddrInfo -> IO ()
+                standBy postInfo = do sock <- socket (addrFamily postInfo) Stream defaultProtocol
+                    bindSocket sock $ addrAddress postInfo
+                    listen sock 5
+                    accept sock
+
+             accept :: Socket -> IO ()
+             accept parent = accept parent >>= \(sock, addr) -> readTVarIO >>= \bl -> getNameInfo [] True False addr >>= \(Just, dest, _) ->
+                                                if dest `notElem` bl
+                                                then entry dest >> forkIO (reciever sock pool dest tls) >> return ()
+                                                    else return () --fuck off
+                                                    >> accept parent
+
+            entry :: Destination -> IO ()
+            entry dest = readTVarIO tls >>= \ls -> atomically.writeTVar tls $ if dest `elem` ls then dest::ls else ls
