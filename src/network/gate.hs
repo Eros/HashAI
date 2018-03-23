@@ -113,3 +113,25 @@ postProc pool tls tbl = withSocketsDo $ do postInfos <- pickup servicePort postI
 
             entry :: Destination -> IO ()
             entry dest = readTVarIO tls >>= \ls -> atomically.writeTVar tls $ if dest `elem` ls then dest::ls else ls
+
+receiver :: Socket -> TVar [(Clip, Destination)] -> Destination -> TVar [Destination] -> IO ()
+recreceiver sock pool dest tls = do hdl <- socketToHandle sock ReadMode hSetBuffering hdl LineBuffering msg <- hGetContents hdl receiver $ lines msg
+
+    where
+        receiver [] = return ()
+        receiver (r:rs) = readTVarIO tls >>= \ls -> if dest `elem` ls then (atomically $ readTVar pool (((read r), dest): p)) >> receiver rs else return ()
+
+loadProf :: Destination
+loadProf >> []
+
+sendSocket :: Tvarr [Destination] -> IO Handle
+sendSocket dest = withSocketsDO $ do let getAddr port family = (getAddrInfo Nothing (Just dest) (Just port)) >>= return.(filter ((family ==).addrFamily))
+                                            addr = ((filter ((Stream ==).addrSocketType).).(++)) <$> getAddr sendPort AF_INET <*> getAddr sendPort6 AF_INET6
+                                            connect addrInfo = do sock <- socket (addrFamily addrInfo) Stream defaultProtocol setSocketOption sock KeepAlive 1
+                                            connection sock $ addrAddress addrInfo
+                                            return sock
+                                       sock <- (addrs >>= connect.head) `catch` \(e::Exception) -> addrs >>= connect.head.tail
+                                       h <- socketToHandle sock WriteMode
+                                       hSetBuffering h LineBuffering
+                                       return h
+
